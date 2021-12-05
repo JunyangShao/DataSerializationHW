@@ -1,1 +1,1 @@
-gcc *.c -I./ -lxml2
+gcc -g *.c -I./ -lxml2
