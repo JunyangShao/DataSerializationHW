@@ -5,34 +5,42 @@
 #include <string.h>
 #include <stdlib.h>
 
-// void free_edits_t(struct edits_t* input){
-//     for(int i = 0; i< input->record.count; i++){
-//         free_record_t(input->record.elem + i);
-//     }
-//     free(input->record.elem);
-//     return;
-// }
+void debug_edits_t(struct edits_t* input){
+    printf("edits_versions = %d\n", input->edits_version);
+    for(int i = 0; i< input->record.count; i++){
+        printf("entering record ---\n");
+        debug_record_t(input->record.elem + i);
+        printf("exiting  record ---\n");
+    }
+    return;
+}
 
-// void free_record_t(struct record_t* input){
-//     free(input->opcode.elem);
-//     return;
-// }
-// void free_data_t(struct data_t* input){
-//     free(input->length);
-//     free(input->inodeid);
-//     free(input->timestamp);
-//     if(input->path != NULL) free(input->path->elem);
-//     free(input->path);
-//     if(input->src != NULL) free(input->src->elem);
-//     free(input->src);
-//     free_premission_status_t(input->permission_status);
-//     return;
-// }
-// void free_premission_status_t(struct permission_status_t* input){
-//     free(input->username.elem);
-//     free(input->groupname.elem);
-//     return;
-// }
+void debug_record_t(struct record_t* input){
+    printf("opcode=%s\n", input->opcode.elem);
+    printf("entering data --------------\n");
+    debug_data_t(&(input->data));
+    printf("exiting  data --------------\n");
+    return;
+}
+void debug_data_t(struct data_t* input){
+    printf("txid=%llu\n", input->txid);
+    if(input->length) printf("length=%llu\n", *(input->length));
+    if(input->inodeid) printf("inodeid=%llu\n", *(input->inodeid));
+    if(input->path) printf("path=%s\n", input->path->elem);
+    if(input->src) printf("src=%s\n", input->src->elem);
+    if(input->timestamp) printf("timestamp=%llu\n", *(input->timestamp));
+    if(input->permission_status) {
+        printf("entering pstat --------------\n");
+        debug_permission_status_t(input->permission_status);
+        printf("exiting  pstat --------------\n");
+    }
+}
+void debug_permission_status_t(struct permission_status_t* input){
+    printf("username=%s\n", input->username.elem);
+    printf("groupname=%s\n", input->groupname.elem);
+    printf("mode=%d\n", input->mode);
+    return;
+}
 
 struct permission_status_t* parsePermission_status (xmlDocPtr doc, xmlNodePtr cur) {
 	struct permission_status_t* ret = malloc(sizeof(struct permission_status_t));
@@ -61,7 +69,7 @@ struct permission_status_t* parsePermission_status (xmlDocPtr doc, xmlNodePtr cu
  	    }
 		else if ((!xmlStrcmp(cur->name, (const xmlChar *)"MODE"))){
             xmlChar* tmpstring = (char *)xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
-            uint16_t tmp = strtoul(tmpstring, NULL, 10);
+            uint16_t tmp = strtol(tmpstring, NULL, 10);
             ret->mode = tmp;
             // printf("mode=%d\n\n", ret->mode);          
             xmlFree(tmpstring);
@@ -102,7 +110,7 @@ struct data_t* parseData (xmlDocPtr doc, xmlNodePtr cur) {
             tmpstring = (char *)xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
             uint64_t tmp = strtoull(tmpstring, NULL, 10);
             ret->timestamp = malloc(sizeof(uint64_t));
-            *(ret->inodeid) = tmp;
+            *(ret->timestamp) = tmp;
             xmlFree(tmpstring);
         }
         else if ((!xmlStrcmp(cur->name, (const xmlChar *)"PATH"))) {
@@ -149,8 +157,6 @@ struct record_t* parseRecord (xmlDocPtr doc, xmlNodePtr cur) {
             struct data_t * tmp_data;
             tmp_data = parseData(doc, cur);
             ret->data = *tmp_data;     
-            // free_data_t(tmp_data);
-            // free(tmp_data);
         }
 	cur = cur->next;
 	}
@@ -199,15 +205,13 @@ static edits_t* parseEdits(char *docname) {
             }
             memcpy(ret->record.elem + ret->record.count, tmp_record, sizeof(struct record_t));
             ret->record.count = ret->record.count + 1;
-            // free_record_t(tmp_record);
-            // free(tmp_record);
 		}
 		else if ((!xmlStrcmp(cur->name, (const xmlChar *)"EDITS_VERSION"))){
             xmlChar* tmpstring = (char *)xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
             int16_t tmp = strtol(tmpstring, NULL, 10);
             ret->edits_version = tmp;
+            // printf("edit_version = %d\n", ret->edits_version);     
             xmlFree(tmpstring);
-            // printf("edit_version = %d, %s\n", tmp, tmpstring);     
 		}
 		 
 	cur = cur->next;
@@ -227,18 +231,17 @@ int main(int argc, char **argv) {
 
 	docname = argv[1];
 	struct edits_t* myedits = parseEdits (docname);
-    
+    debug_edits_t(myedits);
+
     NailArena arena;
     NailOutStream out;
     jmp_buf err;
-    NailArena_init(&arena, 4096, &err);
+    NailArena_init(&arena, 409600, &err);
     gen_edits_t(&arena, &out, myedits);
 
-    size_t binary_size;
-    NailOutStream_buffer(&out, &binary_size);
-    printf("binarized size = %d\n", out.size);
+    size_t tmp;
+    NailOutStream_buffer(&out, &tmp);
+    printf("size = %d\n", tmp);
 
-    // free_edits_t(myedits);
-    // free(myedits);
 	return (1);
 }
