@@ -5,34 +5,34 @@
 #include <string.h>
 #include <stdlib.h>
 
-void free_edits_t(struct edits_t* input){
-    for(int i = 0; i< input->record.count; i++){
-        free_record_t(input->record.elem + i);
-    }
-    free(input->record.elem);
-    return;
-}
+// void free_edits_t(struct edits_t* input){
+//     for(int i = 0; i< input->record.count; i++){
+//         free_record_t(input->record.elem + i);
+//     }
+//     free(input->record.elem);
+//     return;
+// }
 
-void free_record_t(struct record_t* input){
-    free(input->opcode.elem);
-    return;
-}
-void free_data_t(struct data_t* input){
-    free(input->length);
-    free(input->inodeid);
-    free(input->timestamp);
-    if(input->path != NULL) free(input->path->elem);
-    free(input->path);
-    if(input->src != NULL) free(input->src->elem);
-    free(input->src);
-    free_premission_status_t(input->permission_status);
-    return;
-}
-void free_premission_status_t(struct permission_status_t* input){
-    free(input->username.elem);
-    free(input->groupname.elem);
-    return;
-}
+// void free_record_t(struct record_t* input){
+//     free(input->opcode.elem);
+//     return;
+// }
+// void free_data_t(struct data_t* input){
+//     free(input->length);
+//     free(input->inodeid);
+//     free(input->timestamp);
+//     if(input->path != NULL) free(input->path->elem);
+//     free(input->path);
+//     if(input->src != NULL) free(input->src->elem);
+//     free(input->src);
+//     free_premission_status_t(input->permission_status);
+//     return;
+// }
+// void free_premission_status_t(struct permission_status_t* input){
+//     free(input->username.elem);
+//     free(input->groupname.elem);
+//     return;
+// }
 
 struct permission_status_t* parsePermission_status (xmlDocPtr doc, xmlNodePtr cur) {
 	struct permission_status_t* ret = malloc(sizeof(struct permission_status_t));
@@ -42,9 +42,11 @@ struct permission_status_t* parsePermission_status (xmlDocPtr doc, xmlNodePtr cu
 	while (cur != NULL) {
 	    if ((!xmlStrcmp(cur->name, (const xmlChar *)"USERNAME"))) {
 		    tmpstring = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
-            ret->username.elem = malloc(strlen(tmpstring) + 1);          
+            ret->username.elem = malloc(strlen(tmpstring) + 1);
             memcpy(ret->username.elem, tmpstring, strlen(tmpstring) + 1);
             ret->username.count = strlen(tmpstring) + 1;
+            // printf("username=%s\n", ret->username.elem);          
+            // printf("len(username)=%d\n\n", ret->username.count);          
 		    xmlFree(tmpstring);
  	    }
 	    else if ((!xmlStrcmp(cur->name, (const xmlChar *)"GROUPNAME"))) {
@@ -52,12 +54,16 @@ struct permission_status_t* parsePermission_status (xmlDocPtr doc, xmlNodePtr cu
             ret->groupname.elem = malloc(strlen(tmpstring) + 1);        
             memcpy(ret->groupname.elem, tmpstring, strlen(tmpstring) + 1);
             ret->groupname.count = strlen(tmpstring) + 1;
+            // printf("groupname=%s\n", tmpstring);          
+            // printf("len(groupname)=%d\n\n", ret->groupname.count);          
+
 		    xmlFree(tmpstring);
  	    }
 		else if ((!xmlStrcmp(cur->name, (const xmlChar *)"MODE"))){
             xmlChar* tmpstring = (char *)xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
             uint16_t tmp = strtoul(tmpstring, NULL, 10);
             ret->mode = tmp;
+            // printf("mode=%d\n\n", ret->mode);          
             xmlFree(tmpstring);
             // printf("edit_version = %d, %s\n", tmp, tmpstring);     
 		}
@@ -164,7 +170,7 @@ static edits_t* parseEdits(char *docname) {
 	
 	if (doc == NULL ) {
 		fprintf(stderr,"Document not parsed successfully. \n");
-		return;
+		return NULL;
 	}
 	
 	cur = xmlDocGetRootElement(doc);
@@ -172,13 +178,13 @@ static edits_t* parseEdits(char *docname) {
 	if (cur == NULL) {
 		fprintf(stderr,"empty document\n");
 		xmlFreeDoc(doc);
-		return;
+		return NULL;
 	}
 	
 	if (xmlStrcmp(cur->name, (const xmlChar *) "EDITS")) {
 		fprintf(stderr,"document of the wrong type, root node != EDITS");
 		xmlFreeDoc(doc);
-		return;
+		return NULL;
 	}
 	
 	cur = cur->xmlChildrenNode;
