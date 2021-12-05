@@ -227,7 +227,16 @@ int main(int argc, char **argv) {
 
 	docname = argv[1];
 	struct edits_t* myedits = parseEdits (docname);
+    
+    NailArena arena;
+    NailOutStream out;
+    jmp_buf err;
+    NailArena_init(&arena, 4096, &err);
+    gen_edits_t(&arena, &out, myedits);
 
+    size_t binary_size;
+    NailOutStream_buffer(&out, &binary_size);
+    printf("binarized size = %d\n", out.size);
 
     // free_edits_t(myedits);
     // free(myedits);
