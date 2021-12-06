@@ -6,6 +6,8 @@ please 'mv /usr/include/libxml2/libxml /usr/include/' to solve incorrect paths.
 
 please use 'gendata.sh' to generate the data.
 
-please use 'plot.py' to measure and plot
+please use 'compile.sh' to compile the parser.
 
-please run the stat script in its root directory, I haven't make its path robust.
+please use 'plot.py' to measure and plot the figures.
+
+please run all the codes and scripts in their root directory, I haven't make the path robust.
