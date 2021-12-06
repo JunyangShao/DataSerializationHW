@@ -26,6 +26,7 @@ void debug_data_t(struct data_t* input){
     printf("txid=%llu\n", input->txid);
     if(input->length) printf("length=%llu\n", *(input->length));
     if(input->inodeid) printf("inodeid=%llu\n", *(input->inodeid));
+    if(input->datamode) printf("datamode=%llu\n", *(input->datamode));
     if(input->path) printf("path=%s\n", input->path->elem);
     if(input->src) printf("src=%s\n", input->src->elem);
     if(input->timestamp) printf("timestamp=%llu\n", *(input->timestamp));
@@ -52,7 +53,7 @@ struct permission_status_t* parsePermission_status (xmlDocPtr doc, xmlNodePtr cu
 		    tmpstring = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
             ret->username.elem = malloc(strlen(tmpstring) + 1);
             memcpy(ret->username.elem, tmpstring, strlen(tmpstring) + 1);
-            ret->username.count = strlen(tmpstring) + 1;
+            ret->username.count = strlen(tmpstring);
             // printf("username=%s\n", ret->username.elem);          
             // printf("len(username)=%d\n\n", ret->username.count);          
 		    xmlFree(tmpstring);
@@ -61,7 +62,7 @@ struct permission_status_t* parsePermission_status (xmlDocPtr doc, xmlNodePtr cu
 		    tmpstring = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
             ret->groupname.elem = malloc(strlen(tmpstring) + 1);        
             memcpy(ret->groupname.elem, tmpstring, strlen(tmpstring) + 1);
-            ret->groupname.count = strlen(tmpstring) + 1;
+            ret->groupname.count = strlen(tmpstring);
             // printf("groupname=%s\n", tmpstring);          
             // printf("len(groupname)=%d\n\n", ret->groupname.count);          
 
@@ -113,12 +114,19 @@ struct data_t* parseData (xmlDocPtr doc, xmlNodePtr cur) {
             *(ret->timestamp) = tmp;
             xmlFree(tmpstring);
         }
+        else if ((!xmlStrcmp(cur->name, (const xmlChar *)"MODE"))) {
+            tmpstring = (char *)xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
+            uint16_t tmp = strtoull(tmpstring, NULL, 10);
+            ret->datamode = malloc(sizeof(uint16_t));
+            *(ret->datamode) = tmp;
+            xmlFree(tmpstring);
+        }
         else if ((!xmlStrcmp(cur->name, (const xmlChar *)"PATH"))) {
 		    tmpstring = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
             ret->path = malloc(sizeof(struct{int8_t;size_t;}));
             ret->path->elem = malloc(strlen(tmpstring) + 1);        
             memcpy(ret->path->elem, tmpstring, strlen(tmpstring) + 1);
-            ret->path->count = strlen(tmpstring) + 1;
+            ret->path->count = strlen(tmpstring);
 		    xmlFree(tmpstring);
  	    }
         else if ((!xmlStrcmp(cur->name, (const xmlChar *)"SRC"))) {
@@ -126,7 +134,7 @@ struct data_t* parseData (xmlDocPtr doc, xmlNodePtr cur) {
             ret->src = malloc(sizeof(struct{int8_t;size_t;}));
             ret->src->elem = malloc(strlen(tmpstring) + 1);        
             memcpy(ret->src->elem, tmpstring, strlen(tmpstring) + 1);
-            ret->src->count = strlen(tmpstring) + 1;
+            ret->src->count = strlen(tmpstring);
 		    xmlFree(tmpstring);
  	    }
         else if ((!xmlStrcmp(cur->name, (const xmlChar *)"PERMISSION_STATUS"))) {
@@ -150,7 +158,7 @@ struct record_t* parseRecord (xmlDocPtr doc, xmlNodePtr cur) {
 		    tmpstring = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
             ret->opcode.elem = malloc(strlen(tmpstring) + 1);         
             memcpy(ret->opcode.elem, tmpstring, strlen(tmpstring) + 1);
-            ret->opcode.count = strlen(tmpstring) + 1;
+            ret->opcode.count = strlen(tmpstring);
 		    xmlFree(tmpstring);
  	    }
         else if ((!xmlStrcmp(cur->name, (const xmlChar *)"DATA"))) {
@@ -231,17 +239,21 @@ int main(int argc, char **argv) {
 
 	docname = argv[1];
 	struct edits_t* myedits = parseEdits (docname);
-    debug_edits_t(myedits);
+    // debug_edits_t(myedits);
 
     NailArena arena;
     NailOutStream out;
     jmp_buf err;
-    NailArena_init(&arena, 409600, &err);
-    gen_edits_t(&arena, &out, myedits);
+
+    NailArena_init(&arena, 4096, &err);
+    NailOutStream_init(&out,4096);
+    printf("gen_edits_t=%d\n",gen_edits_t(&arena, &out, myedits));
 
     size_t tmp;
     NailOutStream_buffer(&out, &tmp);
     printf("size = %d\n", tmp);
+
+    
 
 	return (1);
 }

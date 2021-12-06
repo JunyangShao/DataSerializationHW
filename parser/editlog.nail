@@ -10,6 +10,7 @@ data_t = {
     inodeid optional uint64
     path optional many int8 | ![0]
     src optional  many int8 | ![0]
+    datamode optional uint16
     timestamp optional uint64
     permission_status optional permission_status_t
 }

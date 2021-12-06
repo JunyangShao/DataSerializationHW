@@ -29,6 +29,7 @@ struct data_t {
     int8_t *elem;
     size_t count;
   } * src;
+  uint16_t *datamode;
   uint64_t *timestamp;
   permission_status_t *permission_status;
 };

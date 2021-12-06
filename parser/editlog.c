@@ -268,9 +268,15 @@ const uint8_t *NailOutStream_buffer(NailOutStream *str, size_t *siz) {
 }
 // TODO: Perhaps use a separate structure for output streams?
 int NailOutStream_grow(NailOutStream *stream, size_t count) {
+  // printf("stream->size = %lld\n", stream->size);
+  // printf("stream->pos = %lld\n", stream->pos);
+  // printf("lhs=%llu, rhs=%llu\n", stream->pos + (count >> 3) + 1, stream->size);
+  // printf("cond=%llu\n", stream->pos + (count >> 3) + 1 >= stream->size);
+  // printf("count = %lld\n", count);
   if (stream->pos + (count >> 3) + 1 >= stream->size) {
     // TODO: parametrize stream growth
-    int alloc_size = stream->pos + (count >> 3) + 1;
+    size_t alloc_size = stream->pos + (count >> 3) + 1;
+    // printf("alloc size = %ld\n", alloc_size);
     if (4096 + stream->size > alloc_size)
       alloc_size = 4096 + stream->size;
     stream->data = (uint8_t *)realloc((void *)stream->data, alloc_size);
@@ -512,10 +518,10 @@ static pos peg_data_t(NailArena *tmp_arena, n_trace *trace,
   }
   {
     pos many = n_tr_memo_optional(trace);
-    if (parser_fail(stream_check(str_current, 64))) {
+    if (parser_fail(stream_check(str_current, 16))) {
       goto fail_optional_8;
     }
-    stream_advance(str_current, 64);
+    stream_advance(str_current, 16);
     n_tr_optional_succeed(trace, many);
     goto succ_optional_8;
   fail_optional_8:
@@ -524,14 +530,26 @@ static pos peg_data_t(NailArena *tmp_arena, n_trace *trace,
   }
   {
     pos many = n_tr_memo_optional(trace);
-    if (parser_fail(peg_permission_status_t(tmp_arena, trace, str_current))) {
+    if (parser_fail(stream_check(str_current, 64))) {
       goto fail_optional_9;
     }
+    stream_advance(str_current, 64);
     n_tr_optional_succeed(trace, many);
     goto succ_optional_9;
   fail_optional_9:
     n_tr_optional_fail(trace, many);
   succ_optional_9:;
+  }
+  {
+    pos many = n_tr_memo_optional(trace);
+    if (parser_fail(peg_permission_status_t(tmp_arena, trace, str_current))) {
+      goto fail_optional_10;
+    }
+    n_tr_optional_succeed(trace, many);
+    goto succ_optional_10;
+  fail_optional_10:
+    n_tr_optional_fail(trace, many);
+  succ_optional_10:;
   }
   return 0;
 fail:
@@ -543,20 +561,20 @@ static pos peg_record_t(NailArena *tmp_arena, n_trace *trace,
   {
     pos many = n_tr_memo_many(trace);
     pos count = 0;
-  succ_repeat_10:
+  succ_repeat_11:
     if (parser_fail(stream_check(str_current, 8))) {
-      goto fail_repeat_10;
+      goto fail_repeat_11;
     }
     {
       uint64_t val = read_unsigned_bits(str_current, 8);
       if (!(val != 0)) {
         stream_backup(str_current, 8);
-        goto fail_repeat_10;
+        goto fail_repeat_11;
       }
     }
     count++;
-    goto succ_repeat_10;
-  fail_repeat_10:
+    goto succ_repeat_11;
+  fail_repeat_11:
     n_tr_write_many(trace, many, count);
   }
   if (parser_fail(peg_data_t(tmp_arena, trace, str_current))) {
@@ -576,13 +594,13 @@ static pos peg_edits_t(NailArena *tmp_arena, n_trace *trace,
   {
     pos many = n_tr_memo_many(trace);
     pos count = 0;
-  succ_repeat_11:
+  succ_repeat_12:
     if (parser_fail(peg_record_t(tmp_arena, trace, str_current))) {
-      goto fail_repeat_11;
+      goto fail_repeat_12;
     }
     count++;
-    goto succ_repeat_11;
-  fail_repeat_11:
+    goto succ_repeat_12;
+  fail_repeat_12:
     n_tr_write_many(trace, many, count);
   }
   return 0;
@@ -712,6 +730,15 @@ static int bind_data_t(NailArena *arena, data_t *out, NailStream *stream,
   } else {
     tr = trace_begin + *tr;
     out->src = NULL;
+  }
+  if (*tr < 0) /*OPTIONAL*/ {
+    tr++;
+    out->datamode =
+        (typeof(out->datamode))n_malloc(arena, sizeof(*out->datamode));
+    out->datamode[0] = read_unsigned_bits_littleendian(stream, 16);
+  } else {
+    tr = trace_begin + *tr;
+    out->datamode = NULL;
   }
   if (*tr < 0) /*OPTIONAL*/ {
     tr++;
@@ -918,6 +945,10 @@ int gen_data_t(NailArena *tmp_arena, NailOutStream *str_current, data_t *val) {
         return -1;
     }
   }
+  if (NULL != val->datamode) {
+    if (parser_fail(NailOutStream_write(str_current, val->datamode[0], 16)))
+      return -1;
+  }
   if (NULL != val->timestamp) {
     if (parser_fail(NailOutStream_write(str_current, val->timestamp[0], 64)))
       return -1;
@@ -936,20 +967,30 @@ int gen_data_t(NailArena *tmp_arena, NailOutStream *str_current, data_t *val) {
 }
 int gen_record_t(NailArena *tmp_arena, NailOutStream *str_current,
                  record_t *val) {
+  // printf("val=%d\n",(int)val);
+  // printf("val->opcode(pointer)=%d\n",*((int *)(val)));
+  // printf("record->opcode = %s, len=%d\n", val->opcode.elem, val->opcode.count);
   for (int i4 = 0; i4 < val->opcode.count; i4++) {
+    // printf("0,i4=%d\n",i4);
     if (!(val->opcode.elem[i4] != 0)) {
+      // printf("1\n");
       return -1;
     }
+    // printf("hello\n");
     if (parser_fail(NailOutStream_write(str_current, val->opcode.elem[i4], 8)))
-      return -1;
+      {  return -1;}
+    // printf("hello2\n");
   }
+  // printf("hello3\n");
   if (parser_fail(gen_data_t(tmp_arena, str_current, &val->data))) {
-    return -1;
+    {  return -1;}
   }
+  // printf("hello4\n");
   { /*Context-rewind*/
     NailOutStreamPos end_of_struct = NailOutStream_getpos(str_current);
     NailOutStream_reposition(str_current, end_of_struct);
   }
+  // printf("hello5\n");
   return 0;
 }
 int gen_edits_t(NailArena *tmp_arena, NailOutStream *str_current,
@@ -957,6 +998,7 @@ int gen_edits_t(NailArena *tmp_arena, NailOutStream *str_current,
   if (parser_fail(NailOutStream_write(str_current, val->edits_version, 16)))
     return -1;
   for (int i5 = 0; i5 < val->record.count; i5++) {
+    // printf("i5=%d, record_count=%d\n",i5,val->record.count);
     if (parser_fail(
             gen_record_t(tmp_arena, str_current, &val->record.elem[i5]))) {
       return -1;
