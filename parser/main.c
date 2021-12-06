@@ -237,23 +237,45 @@ int main(int argc, char **argv) {
 		return(0);
 	}
 
+    // ** reading XML
 	docname = argv[1];
 	struct edits_t* myedits = parseEdits (docname);
     // debug_edits_t(myedits);
 
+    // ** generating
     NailArena arena;
     NailOutStream out;
     jmp_buf err;
 
     NailArena_init(&arena, 4096, &err);
     NailOutStream_init(&out,4096);
-    printf("gen_edits_t=%d\n",gen_edits_t(&arena, &out, myedits));
 
-    size_t tmp;
-    NailOutStream_buffer(&out, &tmp);
-    printf("size = %d\n", tmp);
+    size_t b_myedits_size;
+    printf("gen_edits_t=%d\n", gen_edits_t(&arena, &out, myedits));
+    const char* b_myedits = NailOutStream_buffer(&out, &b_myedits_size);
+    printf("size = %d, b_myedits= %llu\n", b_myedits_size, (uint64_t)(b_myedits));
 
-    
+    // ** writing to file
+    FILE * myfile;
+    myfile = fopen("./myfile","w");
+    printf("fwrite=%d\n", fwrite(b_myedits, 1, b_myedits_size, myfile));
+    fclose(myfile);
+
+    // ** reading from file
+    char* b_myedits2 = malloc(b_myedits_size + 1);
+
+    FILE * myfile2;
+    myfile2 = fopen("./myfile","r");
+    printf("fread=%d\n", fread(b_myedits2, 1, b_myedits_size, myfile));
+    fclose(myfile2); 
+
+    // ** parsing
+    NailArena arena2;
+    jmp_buf err2;
+
+    NailArena_init(&arena2, 4096, &err2);
+    struct edits_t * myedits2 = parse_edits_t(&arena2, b_myedits2, b_myedits_size);
+    printf("parse_edits_t=%llu\n",(uint64_t)(myedits2));
 
 	return (1);
 }
