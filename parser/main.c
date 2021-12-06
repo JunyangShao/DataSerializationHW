@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <sys/stat.h>
+
 
 void debug_edits_t(struct edits_t* input){
     printf("edits_versions = %d\n", input->edits_version);
@@ -237,12 +240,17 @@ int main(int argc, char **argv) {
 		return(0);
 	}
 
+    clock_t begin_readXML = clock();
     // ** reading XML
 	docname = argv[1];
 	struct edits_t* myedits = parseEdits (docname);
     // debug_edits_t(myedits);
+    clock_t end_readXML = clock();
+
 
     // ** generating
+    clock_t begin_generating = clock();
+
     NailArena arena;
     NailOutStream out;
     jmp_buf err;
@@ -254,14 +262,22 @@ int main(int argc, char **argv) {
     printf("gen_edits_t=%d\n", gen_edits_t(&arena, &out, myedits));
     const char* b_myedits = NailOutStream_buffer(&out, &b_myedits_size);
     printf("size = %d, b_myedits= %llu\n", b_myedits_size, (uint64_t)(b_myedits));
+    
+    clock_t end_generating = clock();
 
     // ** writing to file
+    clock_t begin_writing = clock();
+
     FILE * myfile;
     myfile = fopen("./myfile","w");
     printf("fwrite=%d\n", fwrite(b_myedits, 1, b_myedits_size, myfile));
     fclose(myfile);
 
+    clock_t end_writing = clock();
+
     // ** reading from file
+    clock_t begin_reading = clock();
+
     char* b_myedits2 = malloc(b_myedits_size + 1);
 
     FILE * myfile2;
@@ -269,13 +285,36 @@ int main(int argc, char **argv) {
     printf("fread=%d\n", fread(b_myedits2, 1, b_myedits_size, myfile));
     fclose(myfile2); 
 
+    clock_t end_reading = clock();
+
     // ** parsing
+    clock_t begin_parsing = clock();
+
     NailArena arena2;
     jmp_buf err2;
 
     NailArena_init(&arena2, 4096, &err2);
     struct edits_t * myedits2 = parse_edits_t(&arena2, b_myedits2, b_myedits_size);
     printf("parse_edits_t=%llu\n",(uint64_t)(myedits2));
+
+    clock_t end_parsing = clock();
+
+    double tmp;
+    tmp = (double)(-begin_generating + end_writing) / CLOCKS_PER_SEC;
+    printf("serialization   time = %lf us\n", tmp * 1e6);
+
+    tmp = (double)(-begin_reading + end_parsing) / CLOCKS_PER_SEC;
+    printf("deserialization time = %lf us\n", tmp * 1e6);
+
+    struct stat st;
+    stat(docname, &st);
+    long size_orig = st.st_size;
+
+    stat("./myfile", &st);
+    long size_new = st.st_size;
+
+    tmp = ((double)(size_new)) /((double)(size_orig));
+    printf("compression     rate = %lf \%\n", tmp * 100);
 
 	return (1);
 }
