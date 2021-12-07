@@ -22,5 +22,10 @@ record_t = {
 
 edits_t = {
     edits_version int16
-    record many record_t
+    record many mergable_record_t
+}
+
+mergable_record_t = {
+    record1 mergable_record_t 
+    record2 optional mergable_record_t
 }
