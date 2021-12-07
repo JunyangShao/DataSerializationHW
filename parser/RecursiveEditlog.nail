@@ -1,0 +1,26 @@
+permission_status_t = {
+    username many int8 | ![0]
+    groupname many int8 | ![0]
+    mode uint16
+}
+
+data_t = {
+    txid uint64
+    length optional uint64
+    inodeid optional uint64
+    path optional many int8 | ![0]
+    src optional  many int8 | ![0]
+    datamode optional uint16
+    timestamp optional uint64
+    permission_status optional permission_status_t
+}
+
+record_t = {
+    opcode many int8 | ![0]
+    data data_t
+}
+
+edits_t = {
+    edits_version int16
+    record many record_t
+}
